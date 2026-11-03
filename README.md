@@ -56,11 +56,12 @@ Inside the container the command is the platform's:
 simulate --config /input/scenario.json --out /output/trace.parquet
 ```
 
-`simulate-batch --batch-dir DIR --out-dir DIR` runs several scenarios in one process.
+Batched units (`batch.json` + `scenarios/`) use `simulate-batch --batch-dir /input/scenarios --out-dir /output`, which runs
+several scenarios in one process; `scripts/run_unit.sh` picks the right command.
 
 The `reproduce` workflow (run it from the Actions tab) checks that this source rebuilds the Final entry's behaviour.
 It runs this build and the published Final image on all 71 public units. It requires byte-identical Parquet output and an
-identical `events.json`, apart from the run-specific timing and memory fields. Throughput depends on the machine:
+identical `events.json` / `batch_events.json`, apart from the run-specific timing and memory fields. Throughput depends on the machine:
 the official numbers came from the organizers' timing machine (one run at a time on the same machine and GPU).
 
 ## Licence

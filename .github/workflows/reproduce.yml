@@ -35,12 +35,15 @@ jobs:
           RUN_SPECIFIC = {'wall_clock_sec', 'events_per_sec', 'peak_memory_bytes'}
           def digest(d):
               r = {}
-              for f in sorted(os.listdir(d)):
-                  b = open(f'{d}/{f}', 'rb').read()
-                  if f == 'events.json':
-                      r[f] = {k: v for k, v in json.loads(b).items() if k not in RUN_SPECIFIC}
-                  else:
-                      r[f] = hashlib.sha256(b).hexdigest()
+              for root, _, files in os.walk(d):
+                  for f in sorted(files):
+                      path = os.path.join(root, f)
+                      b = open(path, 'rb').read()
+                      key = os.path.relpath(path, d)
+                      if f.endswith('events.json'):
+                          r[key] = {k: v for k, v in json.loads(b).items() if k not in RUN_SPECIFIC}
+                      else:
+                          r[key] = hashlib.sha256(b).hexdigest()
               return r
           units = sorted(os.listdir('outs/final'))
           bad = [u for u in units if digest(f'outs/source/{u}') != digest(f'outs/final/{u}')]
