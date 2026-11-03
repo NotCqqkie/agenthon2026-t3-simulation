@@ -1,0 +1,125 @@
+{
+  "description": "ST base: liquidity-stress agent-mix. Informed ValueTraders + MomentumTraders pressure a thin single MarketMaker and a NoiseTrader crowd; a fast (1ms) market-maker rebalance drives heavy cancel/repost churn, and marketable value/momentum flow drives dense partial-fill sequences. Structural config (agent-mix, exchange rules, oracle type, latency model family) is public; each unit varies one stress axis via overrides. Verified to build and run: 68411 trace rows (13426 fills, 11728 partial fills, 100 cancels) at seed 4001.",
+  "scenario_family": "agent-mix",
+  "schema_version": 2,
+  "horizon_ns": 2342382593,
+  "agent_mix": {
+    "NoiseTrader": 8,
+    "ValueTrader": 3,
+    "MomentumTrader": 2,
+    "MarketMaker": 1
+  },
+  "exchange_config": {
+    "symbol": "SYM",
+    "tick_size": 1,
+    "lot_size": 1,
+    "min_price": 1,
+    "max_price": 1000000,
+    "stp_policy": "cancel_newest",
+    "order_types_allowed": [
+      "LIMIT",
+      "MARKET",
+      "CANCEL",
+      "REPLACE"
+    ]
+  },
+  "oracle_config": {
+    "type": "mean_reverting",
+    "params": {
+      "initial_price": 100000,
+      "kappa": 0.1,
+      "sigma": 0.002,
+      "dt_ns": 1000000,
+      "noise_type": "gaussian",
+      "jump_intensity": 0.0,
+      "jump_sigma": 0.0
+    }
+  },
+  "latency_config": {
+    "model": "pareto",
+    "params": {
+      "mean_ns": 0,
+      "sigma": 0.0,
+      "min_ns": 500,
+      "max_ns": 60000000,
+      "alpha": 1.3
+    }
+  },
+  "agent_configs": [
+    {
+      "agent_type": "NoiseTrader",
+      "count": 8,
+      "params": {
+        "order_size_mean": 10,
+        "order_size_std": 3,
+        "arrival_rate_hz": 15.0,
+        "price_offset_ticks": 5
+      }
+    },
+    {
+      "agent_type": "ValueTrader",
+      "count": 3,
+      "params": {
+        "fundamental_value_source": "oracle",
+        "order_size_mean": 40,
+        "threshold_ticks": 2,
+        "arrival_rate_hz": 8.0
+      }
+    },
+    {
+      "agent_type": "MomentumTrader",
+      "count": 2,
+      "params": {
+        "order_size_mean": 25,
+        "threshold_ticks": 2,
+        "lookback": 5,
+        "arrival_rate_hz": 6.0
+      }
+    },
+    {
+      "agent_type": "MarketMaker",
+      "count": 1,
+      "params": {
+        "spread_ticks": 4,
+        "depth_levels": 3,
+        "size_per_level": 12,
+        "rebalance_interval_ns": 1000000
+      }
+    }
+  ],
+  "output_config": {
+    "trace_cols": [
+      "t_ns",
+      "agent_id",
+      "msg_type",
+      "side",
+      "price",
+      "size",
+      "order_id"
+    ],
+    "events_fields": [
+      "scenario_id",
+      "n_events",
+      "wall_clock_sec",
+      "events_per_sec",
+      "seed",
+      "trace_sha256"
+    ],
+    "snapshot_interval_ns": 0
+  },
+  "tolerance": {
+    "tier": "B",
+    "timestamp_tolerance_ns": 1000,
+    "kendall_tau_floor": 0.999,
+    "spread_bps_tolerance": 15.0,
+    "oracle_rmse_tolerance_pct": 20.0,
+    "stylized_fact_ceilings": {
+      "ks": 0.08,
+      "acf_abs_l2": 0.12,
+      "hill_abs": 1.5,
+      "depth_js": 0.1
+    }
+  },
+  "scenario_id": "af38a808-c9db-54cb-8604-75e1bf79759c",
+  "seed": 747602108
+}

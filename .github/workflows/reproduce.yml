@@ -1,0 +1,49 @@
+name: reproduce
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  reproduce:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      FINAL_IMAGE: ghcr.io/notcqqkie/agenthon-t3-simulator@sha256:5f4e0536a4f227b4a6e0e087a27a5b97a48577c308054c7cf826c75c6269306c
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: src
+      - uses: actions/checkout@v4
+        with:
+          repository: Agenthon-2026/track3-simulation-public
+          ref: eb8bf077492d38fdc5f0e4ce011f19351f0a8d09
+          path: t3
+      - name: Build from source and pull the Final image
+        run: |
+          docker build -q -t t3-source:local src
+          docker pull -q "$FINAL_IMAGE"
+      - name: Run both images on every public unit and compare outputs (timing fields of events.json excluded)
+        run: |
+          set -e
+          for u in t3/units/*/; do
+            id=$(basename "$u")
+            src/scripts/run_unit.sh t3-source:local "$u" "outs/source/$id"
+            src/scripts/run_unit.sh "$FINAL_IMAGE" "$u" "outs/final/$id"
+          done
+          python3 - <<'PY'
+          import hashlib, json, os
+          RUN_SPECIFIC = {'wall_clock_sec', 'events_per_sec', 'peak_memory_bytes'}
+          def digest(d):
+              r = {}
+              for f in sorted(os.listdir(d)):
+                  b = open(f'{d}/{f}', 'rb').read()
+                  if f == 'events.json':
+                      r[f] = {k: v for k, v in json.loads(b).items() if k not in RUN_SPECIFIC}
+                  else:
+                      r[f] = hashlib.sha256(b).hexdigest()
+              return r
+          units = sorted(os.listdir('outs/final'))
+          bad = [u for u in units if digest(f'outs/source/{u}') != digest(f'outs/final/{u}')]
+          print(f'units {len(units)}  identical {len(units) - len(bad)}  mismatch {bad}')
+          assert units and not bad
+          PY

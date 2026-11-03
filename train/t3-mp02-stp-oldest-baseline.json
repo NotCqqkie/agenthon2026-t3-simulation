@@ -1,0 +1,102 @@
+{
+  "description": "MP base: 11-agent single coupled market (1 MarketMaker, 3 ValueTrader, 6 NoiseTrader) with heterogeneous log-normal message latency, designed so exchange-protocol L2 semantics (ack/execution-report/quote-dissemination timing and per-order lifecycle) are observable in the companion message_trace.parquet. The MarketMaker's cancel-and-repost ladder generates a dense QUOTE_UPDATE / cancel / accept stream; the ValueTraders' oracle-driven marketable flow drives fills and partial fills whose ack timing must respect return latency. A static-batched / vmap-over-books port that delivers responses synchronously reorders the ack/fill/quote subsequence relative to per-message latency and fails the exchange-protocol Tier-A subsequence check.",
+  "scenario_family": "exchange-protocol",
+  "schema_version": 2,
+  "horizon_ns": 3516552215,
+  "exchange_config": {
+    "symbol": "SYM",
+    "tick_size": 1,
+    "lot_size": 1,
+    "min_price": 1,
+    "max_price": 1000000,
+    "stp_policy": "cancel_oldest",
+    "order_types_allowed": [
+      "LIMIT",
+      "MARKET",
+      "CANCEL",
+      "REPLACE"
+    ],
+    "protocol_enforcement": true
+  },
+  "oracle_config": {
+    "type": "mean_reverting",
+    "params": {
+      "initial_price": 100000,
+      "kappa": 0.05,
+      "sigma": 0.001,
+      "dt_ns": 1000000,
+      "noise_type": "gaussian",
+      "jump_intensity": 0.0,
+      "jump_sigma": 0.0
+    }
+  },
+  "latency_config": {
+    "model": "log_normal",
+    "params": {
+      "mean_ns": 50000,
+      "sigma": 0.6,
+      "min_ns": 1000,
+      "max_ns": 20000000
+    }
+  },
+  "agent_configs": [
+    {
+      "agent_type": "MarketMaker",
+      "count": 1,
+      "params": {
+        "spread_ticks": 4,
+        "depth_levels": 4,
+        "size_per_level": 12,
+        "rebalance_interval_ns": 2000000
+      }
+    },
+    {
+      "agent_type": "ValueTrader",
+      "count": 3,
+      "params": {
+        "fundamental_value_source": "oracle",
+        "order_size_mean": 25,
+        "threshold_ticks": 2,
+        "arrival_rate_hz": 6.0
+      }
+    },
+    {
+      "agent_type": "NoiseTrader",
+      "count": 6,
+      "params": {
+        "order_size_mean": 8,
+        "order_size_std": 2,
+        "arrival_rate_hz": 12.0,
+        "price_offset_ticks": 4
+      }
+    }
+  ],
+  "output_config": {
+    "trace_cols": [
+      "t_ns",
+      "agent_id",
+      "msg_type",
+      "side",
+      "price",
+      "size",
+      "order_id"
+    ],
+    "events_fields": [
+      "scenario_id",
+      "n_events",
+      "wall_clock_sec",
+      "events_per_sec",
+      "seed",
+      "trace_sha256"
+    ],
+    "snapshot_interval_ns": 0
+  },
+  "tolerance": {
+    "tier": "A",
+    "timestamp_tolerance_ns": 1000,
+    "kendall_tau_floor": 0.999,
+    "spread_bps_tolerance": 10.0
+  },
+  "scenario_id": "dfba64e0-cac2-5f16-b408-41de04ff2cae",
+  "seed": 2045111676
+}
